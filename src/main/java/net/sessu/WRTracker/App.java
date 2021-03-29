@@ -45,17 +45,27 @@ public class App {
 
 		update_player_totals();
 
-		for (Player p : playerlist) {
-			System.out.println(p.toString());
-		}
-
 		songlist_to_json(songlist);
 		scorelist_to_json(prunedScorelist);
+
+		System.out.println(playerlist.size() + " players");
+		prune_playerlist();
+		System.out.println(playerlist.size() + " players");
+		
+		playerlist_to_json(playerlist);
+	}
+
+	public static void prune_playerlist() {
+		for (int i = 0; i < playerlist.size(); i++) {
+			double size = playerlist.get(i).getWeighted_score();
+			if (size == 0.0) {
+				playerlist.remove(i);
+			}
+		}
+		System.out.println(playerlist.size());
 	}
 
 	public static void update_player_totals() {
-		Player this_player = new Player(0, "null");
-
 		for (Score score : scorelist) {
 			int id = score.getSong_id();
 			int level = score.getLevel();
@@ -66,157 +76,152 @@ public class App {
 			int player_index = IntStream.range(0, playerlist.size())
 					.filter(i -> playerlist.get(i).getDdrcode() == ddrcode).findFirst().orElse(-1);
 			if (player_index > -1) {
-				this_player = playerlist.get(player_index);
+				Player this_player = playerlist.get(player_index);
+
+				switch (level) {
+				case 0:
+					ties = songlist.get(id).getBeg_c();
+					if (ties == 1) {
+						this_player.setWeighted_score(this_player.getWeighted_score() + 1);
+						this_player.setBeg_s(this_player.getBeg_s() + 1);
+						this_player.setTotal_u(this_player.getTotal_u() + 1);
+						this_player.setBeg_u(this_player.getBeg_u() + 1);
+					} else if (ties > 1) {
+						double points = 1.0 / ties;
+						this_player.setWeighted_score(this_player.getWeighted_score() + points);
+						this_player.setBeg_s(this_player.getBeg_s() + points);
+						this_player.setTotal_t(this_player.getTotal_t() + 1);
+						this_player.setBeg_t(this_player.getBeg_t() + 1);
+					}
+					break;
+				case 1:
+					ties = songlist.get(id).getBsp_c();
+					if (ties == 1) {
+						this_player.setWeighted_score(this_player.getWeighted_score() + 1);
+						this_player.setBsp_s(this_player.getBsp_s() + 1);
+						this_player.setTotal_u(this_player.getTotal_u() + 1);
+						this_player.setBsp_u(this_player.getBsp_u() + 1);
+					} else if (ties > 1) {
+						double points = 1.0 / ties;
+						this_player.setWeighted_score(this_player.getWeighted_score() + points);
+						this_player.setBsp_s(this_player.getBsp_s() + points);
+						this_player.setTotal_t(this_player.getTotal_t() + 1);
+						this_player.setBsp_t(this_player.getBsp_t() + 1);
+					}
+					break;
+				case 2:
+					ties = songlist.get(id).getDsp_c();
+					if (ties == 1) {
+						this_player.setWeighted_score(this_player.getWeighted_score() + 1);
+						this_player.setDsp_s(this_player.getDsp_s() + 1);
+						this_player.setTotal_u(this_player.getTotal_u() + 1);
+						this_player.setDsp_u(this_player.getDsp_u() + 1);
+					} else if (ties > 1) {
+						double points = 1.0 / ties;
+						this_player.setWeighted_score(this_player.getWeighted_score() + points);
+						this_player.setDsp_s(this_player.getDsp_s() + points);
+						this_player.setTotal_t(this_player.getTotal_t() + 1);
+						this_player.setDsp_t(this_player.getDsp_t() + 1);
+					}
+					break;
+				case 3:
+					ties = songlist.get(id).getEsp_c();
+					if (ties == 1) {
+						this_player.setWeighted_score(this_player.getWeighted_score() + 1);
+						this_player.setEsp_s(this_player.getEsp_s() + 1);
+						this_player.setTotal_u(this_player.getTotal_u() + 1);
+						this_player.setEsp_u(this_player.getEsp_u() + 1);
+					} else if (ties > 1) {
+						double points = 1.0 / ties;
+						this_player.setWeighted_score(this_player.getWeighted_score() + points);
+						this_player.setEsp_s(this_player.getEsp_s() + points);
+						this_player.setTotal_t(this_player.getTotal_t() + 1);
+						this_player.setEsp_t(this_player.getEsp_t() + 1);
+					}
+					break;
+				case 4:
+					ties = songlist.get(id).getCsp_c();
+					if (ties == 1) {
+						this_player.setWeighted_score(this_player.getWeighted_score() + 1);
+						this_player.setCsp_s(this_player.getCsp_s() + 1);
+						this_player.setTotal_u(this_player.getTotal_u() + 1);
+						this_player.setCsp_u(this_player.getCsp_u() + 1);
+					} else if (ties > 1) {
+						double points = 1.0 / ties;
+						this_player.setWeighted_score(this_player.getWeighted_score() + points);
+						this_player.setCsp_s(this_player.getCsp_s() + points);
+						this_player.setTotal_t(this_player.getTotal_t() + 1);
+						this_player.setCsp_t(this_player.getCsp_t() + 1);
+					}
+					break;
+				case 5:
+					ties = songlist.get(id).getBdp_c();
+					if (ties == 1) {
+						this_player.setWeighted_score(this_player.getWeighted_score() + 1);
+						this_player.setBdp_s(this_player.getBdp_s() + 1);
+						this_player.setTotal_u(this_player.getTotal_u() + 1);
+						this_player.setBdp_u(this_player.getBdp_u() + 1);
+					} else if (ties > 1) {
+						double points = 1.0 / ties;
+						this_player.setWeighted_score(this_player.getWeighted_score() + points);
+						this_player.setBdp_s(this_player.getBdp_s() + points);
+						this_player.setTotal_t(this_player.getTotal_t() + 1);
+						this_player.setBdp_t(this_player.getBdp_t() + 1);
+					}
+					break;
+				case 6:
+					ties = songlist.get(id).getDdp_c();
+					if (ties == 1) {
+						this_player.setWeighted_score(this_player.getWeighted_score() + 1);
+						this_player.setDdp_s(this_player.getDdp_s() + 1);
+						this_player.setTotal_u(this_player.getTotal_u() + 1);
+						this_player.setDdp_u(this_player.getDdp_u() + 1);
+					} else if (ties > 1) {
+						double points = 1.0 / ties;
+						this_player.setWeighted_score(this_player.getWeighted_score() + points);
+						this_player.setDdp_s(this_player.getDdp_s() + points);
+						this_player.setTotal_t(this_player.getTotal_t() + 1);
+						this_player.setDdp_t(this_player.getDdp_t() + 1);
+					}
+					break;
+				case 7:
+					ties = songlist.get(id).getEdp_c();
+					if (ties == 1) {
+						this_player.setWeighted_score(this_player.getWeighted_score() + 1);
+						this_player.setEdp_s(this_player.getEdp_s() + 1);
+						this_player.setTotal_u(this_player.getTotal_u() + 1);
+						this_player.setEdp_u(this_player.getEdp_u() + 1);
+					} else if (ties > 1) {
+						double points = 1.0 / ties;
+						this_player.setWeighted_score(this_player.getWeighted_score() + points);
+						this_player.setEdp_s(this_player.getEdp_s() + points);
+						this_player.setTotal_t(this_player.getTotal_t() + 1);
+						this_player.setEdp_t(this_player.getEdp_t() + 1);
+					}
+					break;
+				case 8:
+					ties = songlist.get(id).getCdp_c();
+					if (ties == 1) {
+						this_player.setWeighted_score(this_player.getWeighted_score() + 1);
+						this_player.setCdp_s(this_player.getCdp_s() + 1);
+						this_player.setTotal_u(this_player.getTotal_u() + 1);
+						this_player.setCdp_u(this_player.getCdp_u() + 1);
+					} else if (ties > 1) {
+						double points = 1.0 / ties;
+						this_player.setWeighted_score(this_player.getWeighted_score() + points);
+						this_player.setCdp_s(this_player.getCdp_s() + points);
+						this_player.setTotal_t(this_player.getTotal_t() + 1);
+						this_player.setCdp_t(this_player.getCdp_t() + 1);
+					}
+					break;
+				}
+
+				// System.out.println(player_index + " " + this_player);
+				playerlist.set(player_index, this_player);
 			}
 
-			switch (level) {
-			case 0:
-				ties = songlist.get(id).getBeg_c();
-				if (ties == 1) {
-					this_player.setWeighted_score(this_player.getWeighted_score() + 1);
-					this_player.setBeg_s(this_player.getBeg_s() + 1);
-					this_player.setTotal_u(this_player.getTotal_u() + 1);
-					this_player.setBeg_u(this_player.getBeg_u() + 1);
-				} else if (ties > 1) {
-					double points = 1.0 / ties;
-					this_player.setWeighted_score(this_player.getWeighted_score() + points);
-					this_player.setBeg_s(this_player.getBeg_s() + points);
-					this_player.setTotal_t(this_player.getTotal_t() + 1);
-					this_player.setBeg_t(this_player.getBeg_t() + 1);
-				}
-				break;
-
-			case 1:
-				ties = songlist.get(id).getBsp_c();
-				if (ties == 1) {
-					this_player.setWeighted_score(this_player.getWeighted_score() + 1);
-					this_player.setBsp_s(this_player.getBsp_s() + 1);
-					this_player.setTotal_u(this_player.getTotal_u() + 1);
-					this_player.setBsp_u(this_player.getBsp_u() + 1);
-				} else if (ties > 1) {
-					double points = 1.0 / ties;
-					this_player.setWeighted_score(this_player.getWeighted_score() + points);
-					this_player.setBsp_s(this_player.getBsp_s() + points);
-					this_player.setTotal_t(this_player.getTotal_t() + 1);
-					this_player.setBsp_t(this_player.getBsp_t() + 1);
-				}
-				break;
-
-			case 2:
-				ties = songlist.get(id).getDsp_c();
-				if (ties == 1) {
-					this_player.setWeighted_score(this_player.getWeighted_score() + 1);
-					this_player.setDsp_s(this_player.getDsp_s() + 1);
-					this_player.setTotal_u(this_player.getTotal_u() + 1);
-					this_player.setDsp_u(this_player.getDsp_u() + 1);
-				} else if (ties > 1) {
-					double points = 1.0 / ties;
-					this_player.setWeighted_score(this_player.getWeighted_score() + points);
-					this_player.setDsp_s(this_player.getDsp_s() + points);
-					this_player.setTotal_t(this_player.getTotal_t() + 1);
-					this_player.setDsp_t(this_player.getDsp_t() + 1);
-				}
-				break;
-
-			case 3:
-				ties = songlist.get(id).getEsp_c();
-				if (ties == 1) {
-					this_player.setWeighted_score(this_player.getWeighted_score() + 1);
-					this_player.setEsp_s(this_player.getEsp_s() + 1);
-					this_player.setTotal_u(this_player.getTotal_u() + 1);
-					this_player.setEsp_u(this_player.getEsp_u() + 1);
-				} else if (ties > 1) {
-					double points = 1.0 / ties;
-					this_player.setWeighted_score(this_player.getWeighted_score() + points);
-					this_player.setEsp_s(this_player.getEsp_s() + points);
-					this_player.setTotal_t(this_player.getTotal_t() + 1);
-					this_player.setEsp_t(this_player.getEsp_t() + 1);
-				}
-				break;
-
-			case 4:
-				ties = songlist.get(id).getCsp_c();
-				if (ties == 1) {
-					this_player.setWeighted_score(this_player.getWeighted_score() + 1);
-					this_player.setCsp_s(this_player.getCsp_s() + 1);
-					this_player.setTotal_u(this_player.getTotal_u() + 1);
-					this_player.setCsp_u(this_player.getCsp_u() + 1);
-				} else if (ties > 1) {
-					double points = 1.0 / ties;
-					this_player.setWeighted_score(this_player.getWeighted_score() + points);
-					this_player.setCsp_s(this_player.getCsp_s() + points);
-					this_player.setTotal_t(this_player.getTotal_t() + 1);
-					this_player.setCsp_t(this_player.getCsp_t() + 1);
-				}
-				break;
-
-			case 5:
-				ties = songlist.get(id).getBdp_c();
-				if (ties == 1) {
-					this_player.setWeighted_score(this_player.getWeighted_score() + 1);
-					this_player.setBdp_s(this_player.getBdp_s() + 1);
-					this_player.setTotal_u(this_player.getTotal_u() + 1);
-					this_player.setBdp_u(this_player.getBdp_u() + 1);
-				} else if (ties > 1) {
-					double points = 1.0 / ties;
-					this_player.setWeighted_score(this_player.getWeighted_score() + points);
-					this_player.setBdp_s(this_player.getBdp_s() + points);
-					this_player.setTotal_t(this_player.getTotal_t() + 1);
-					this_player.setBdp_t(this_player.getBdp_t() + 1);
-				}
-				break;
-
-			case 6:
-				ties = songlist.get(id).getDdp_c();
-				if (ties == 1) {
-					this_player.setWeighted_score(this_player.getWeighted_score() + 1);
-					this_player.setDdp_s(this_player.getDdp_s() + 1);
-					this_player.setTotal_u(this_player.getTotal_u() + 1);
-					this_player.setDdp_u(this_player.getDdp_u() + 1);
-				} else if (ties > 1) {
-					double points = 1.0 / ties;
-					this_player.setWeighted_score(this_player.getWeighted_score() + points);
-					this_player.setDdp_s(this_player.getDdp_s() + points);
-					this_player.setTotal_t(this_player.getTotal_t() + 1);
-					this_player.setDdp_t(this_player.getDdp_t() + 1);
-				}
-				break;
-			case 7:
-				ties = songlist.get(id).getEdp_c();
-				if (ties == 1) {
-					this_player.setWeighted_score(this_player.getWeighted_score() + 1);
-					this_player.setEdp_s(this_player.getEdp_s() + 1);
-					this_player.setTotal_u(this_player.getTotal_u() + 1);
-					this_player.setEdp_u(this_player.getEdp_u() + 1);
-				} else if (ties > 1) {
-					double points = 1.0 / ties;
-					this_player.setWeighted_score(this_player.getWeighted_score() + points);
-					this_player.setEdp_s(this_player.getEdp_s() + points);
-					this_player.setTotal_t(this_player.getTotal_t() + 1);
-					this_player.setEdp_t(this_player.getEdp_t() + 1);
-				}
-				break;
-			case 8:
-				ties = songlist.get(id).getCdp_c();
-				if (ties == 1) {
-					this_player.setWeighted_score(this_player.getWeighted_score() + 1);
-					this_player.setCdp_s(this_player.getCdp_s() + 1);
-					this_player.setTotal_u(this_player.getTotal_u() + 1);
-					this_player.setCdp_u(this_player.getCdp_u() + 1);
-				} else if (ties > 1) {
-					double points = 1.0 / ties;
-					this_player.setWeighted_score(this_player.getWeighted_score() + points);
-					this_player.setCdp_s(this_player.getCdp_s() + points);
-					this_player.setTotal_t(this_player.getTotal_t() + 1);
-					this_player.setCdp_t(this_player.getCdp_t() + 1);
-				}
-				break;
-			}
-			//System.out.println(player_index + " " + this_player);
-			playerlist.set(player_index, this_player);
-			System.out.println(playerlist.get(player_index));
+			// System.out.println(playerlist.get(player_index));
 		}
-
 	}
 
 	public static List<Score> prune_scores() {
@@ -322,6 +327,41 @@ public class App {
 
 	}
 
+	public static void playerlist_to_json(List<Player> playerlist) {
+		Gson gson = new GsonBuilder().setPrettyPrinting().create();
+
+		try {
+			File file = new File("players.json");
+			file.createNewFile();
+			FileWriter writer = new FileWriter(file);
+
+			int pk = 1;
+			writer.write("[");
+			for (Player p : playerlist) {
+				if (p.getWeighted_score() > 0.0) {
+					writer.write("\n{");
+					writer.write("\n\"model\": \"trackerapp.player\",");
+					writer.write("\n\"pk\": " + pk + ",");
+					writer.write("\n\"fields\": ");
+					writer.write(gson.toJson(p));
+					writer.write("\n}");
+					if (pk != scorelist.size()) {
+						writer.write(",");
+					}
+				}
+				pk++;
+			}
+			writer.write("\n]");
+
+			writer.flush();
+			writer.close();
+			System.out.println("Wrote players");
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+	
 	public static void songlist_to_js(List<Song> songlist) {
 		Gson gson = new GsonBuilder().setPrettyPrinting().create();
 
@@ -434,7 +474,7 @@ public class App {
 		// Vars for sleep
 		long lastPullTimeUnixMs = 0;
 		final long PULL_THRESHOLD_SEC = 3;
-		final int SONG_LIMIT = 1; // songlist.size();
+		final int SONG_LIMIT = songlist.size();
 
 		try {
 			WebClient webClient = new WebClient(BrowserVersion.CHROME);
