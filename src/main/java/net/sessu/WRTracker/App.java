@@ -66,7 +66,7 @@ public class App {
 	}
 
 	public static void update_player_totals() {
-		for (Score score : scorelist) {
+		for (Score score : prunedScorelist) {
 			int id = score.getSong_id();
 			int level = score.getLevel();
 			final int ddrcode = score.getDdrcode();
