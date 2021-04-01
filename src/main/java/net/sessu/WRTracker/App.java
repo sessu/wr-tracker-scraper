@@ -43,7 +43,7 @@ public class App {
 		System.out.println(
 				"Pruned to " + prunedScorelist.size() + " scores... " + (scorelist.size() - prunedScorelist.size()));
 
-		update_player_totals();
+		update_player_totals(prunedScorelist);
 
 		songlist_to_json(songlist);
 		scorelist_to_json(prunedScorelist);
@@ -65,7 +65,7 @@ public class App {
 		System.out.println(playerlist.size());
 	}
 
-	public static void update_player_totals() {
+	public static void update_player_totals(List<Score> prunedScorelist) {
 		for (Score score : prunedScorelist) {
 			int id = score.getSong_id();
 			int level = score.getLevel();
