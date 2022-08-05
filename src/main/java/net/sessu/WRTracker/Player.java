@@ -49,9 +49,9 @@ public class Player {
 		this.name = name;
 	}
 
-	// ROUND TO 3 DECIMALS
+	// ROUND TO 4 DECIMALS
 	public double getWeighted_score() {
-		return Math.round(weighted_score * 1000.0) / 1000.0;
+		return weighted_score;
 	}
 
 	public int getTotal_u() {

@@ -28,31 +28,39 @@ public class App {
 	static List<Score> scorelist;
 	static List<Score> prunedScorelist;
 	static List<Player> playerlist;
+	
+	String[] bannedList = {"41239949"};
 
 	public static void main(String[] args) {
 		playerlist = new ArrayList<Player>();
 
 		songlist = makeSonglist();
-		System.out.println(songlist.get(songlist.size() - 1).toJsString());
+		System.out.println(songlist.get(songlist.size() - 4).toJsString());
 
+		
 		scorelist = new ArrayList<Score>();
 		getTopScores();
 
+		
 		System.out.println(scorelist.size() + " scores");
+		
+		/*
 		List<Score> prunedScorelist = prune_scores();
 		System.out.println(
 				"Pruned to " + prunedScorelist.size() + " scores... " + (scorelist.size() - prunedScorelist.size()));
-
-		update_player_totals(prunedScorelist);
+		*/
+		
+		update_player_totals(scorelist);
 
 		songlist_to_json(songlist);
-		scorelist_to_json(prunedScorelist);
+		scorelist_to_json(scorelist);
 
 		System.out.println(playerlist.size() + " players");
 		prune_playerlist();
 		System.out.println(playerlist.size() + " players");
 		
 		playerlist_to_json(playerlist);
+		
 	}
 
 	public static void prune_playerlist() {
@@ -474,14 +482,15 @@ public class App {
 		// Vars for sleep
 		long lastPullTimeUnixMs = 0;
 		final long PULL_THRESHOLD_SEC = 3;
-		final int SONG_LIMIT = songlist.size();
+		final int SONG_START = 0;
+		final int SONG_LIMIT = 3; //songlist.size();
 
 		try {
 			WebClient webClient = new WebClient(BrowserVersion.CHROME);
 
 			// For loop (iterates through all songs in song list)
 			// Currently capped at 10
-			for (int sa4_index = 0; sa4_index < SONG_LIMIT; sa4_index++) {
+			for (int sa4_index = SONG_START; sa4_index < SONG_LIMIT; sa4_index++) {
 
 				// Limits speed to 1 song per 3 seconds
 				long nowUnixMs = System.currentTimeMillis();
@@ -506,8 +515,77 @@ public class App {
 				// Get table rows from the song page
 				Element score_table = doc.selectFirst("table");
 				Elements rows = score_table.select("tbody > tr");
-
-				// Go row by row (each row represents a user)
+				
+				
+				int[] song_top_scores = new int[11];
+				
+				// Get top scores only
+				for (Element row : rows) {
+					Elements cells = row.select("td"); // rank, name, single diffs (x5) double diffs (x4)
+					if (cells.size() > 0) {
+						for (int i = 2; i < cells.size(); i++) {
+							String current_score_string = cells.get(i).text().replace(",", ""); // Remove comma
+							if (current_score_string.contains("0")) {
+								int current_score = Integer.valueOf(current_score_string);
+								
+								if (current_score > song_top_scores[i]) {
+									song_top_scores[i] = current_score;
+								}
+							}
+						}
+					}
+									
+				}
+				
+				int[] song_ties = new int[11];
+				
+				// Get ties
+				for (Element row : rows) {
+					Elements cells = row.select("td"); // rank, name, single diffs (x5) double diffs (x4)
+					if (cells.size() > 0) {
+						for (int i = 2; i < cells.size(); i++) {
+							String current_score_string = cells.get(i).text().replace(",", ""); // Remove comma
+							if (current_score_string.contains("0")) {
+								int current_score = Integer.valueOf(current_score_string);
+								
+								if (current_score == song_top_scores[i]) {
+									song_ties[i]++;
+								}
+							}
+						}
+					}
+				}
+				
+				// Set point values
+				double[] song_point_values = new double[11];
+				for (int i = 0; i < song_point_values.length; i++) {
+					if (song_ties[i] != 0) {
+						song_point_values[i] = 1.0 / song_ties[i];
+					} else {
+						song_point_values[i] = 0;
+					}
+				}
+				
+				songlist.get(sa4_index).setBeg_c(song_ties[2]);
+				songlist.get(sa4_index).setBsp_c(song_ties[3]);
+				songlist.get(sa4_index).setDsp_c(song_ties[4]);
+				songlist.get(sa4_index).setEsp_c(song_ties[5]);
+				songlist.get(sa4_index).setCsp_c(song_ties[6]);
+				songlist.get(sa4_index).setBdp_c(song_ties[7]);
+				songlist.get(sa4_index).setDdp_c(song_ties[8]);
+				songlist.get(sa4_index).setEdp_c(song_ties[9]);
+				songlist.get(sa4_index).setCdp_c(song_ties[10]);
+				songlist.get(sa4_index).setBeg_s(song_top_scores[2]);
+				songlist.get(sa4_index).setBsp_s(song_top_scores[3]);
+				songlist.get(sa4_index).setDsp_s(song_top_scores[4]);
+				songlist.get(sa4_index).setEsp_s(song_top_scores[5]);
+				songlist.get(sa4_index).setCsp_s(song_top_scores[6]);
+				songlist.get(sa4_index).setBdp_s(song_top_scores[7]);
+				songlist.get(sa4_index).setDdp_s(song_top_scores[8]);
+				songlist.get(sa4_index).setEdp_s(song_top_scores[9]);
+				songlist.get(sa4_index).setCdp_s(song_top_scores[10]);		
+				
+				// Add scores
 				for (Element row : rows) {
 					Elements cells = row.select("td"); // rank, name, single diffs (x5) double diffs (x4)
 
@@ -535,79 +613,34 @@ public class App {
 							playerlist.add(newplayer);
 						}
 
-						// Remaining cells are scores for the associated DDR code.
-						// Compares score to WR, if there is a match, adds the score to our arrayList
-						// FIRST PASS: GET TOP SCORE ONLY
 						for (int i = 2; i < cells.size(); i++) {
 							String current_score_string = cells.get(i).text().replace(",", "");
 							if (current_score_string.contains("0")) {
 								int current_score = Integer.valueOf(current_score_string);
-								switch (i) {
-
-								// Singles
-								case 2:
-									if (current_score >= song.getBeg_s()) {
-										song.setBeg_s(current_score);
-										scorelist.add(new Score(sa4_index, i - 2, ddrcode, current_score));
-									}
-									break;
-								case 3:
-									if (current_score >= song.getBsp_s()) {
-										song.setBsp_s(current_score);
-										scorelist.add(new Score(sa4_index, i - 2, ddrcode, current_score));
-									}
-									break;
-								case 4:
-									if (current_score >= song.getDsp_s()) {
-										song.setDsp_s(current_score);
-										scorelist.add(new Score(sa4_index, i - 2, ddrcode, current_score));
-									}
-									break;
-								case 5:
-									if (current_score >= song.getEsp_s()) {
-										song.setEsp_s(current_score);
-										scorelist.add(new Score(sa4_index, i - 2, ddrcode, current_score));
-									}
-									break;
-								case 6:
-									if (current_score >= song.getCsp_s()) {
-										song.setCsp_s(current_score);
-										scorelist.add(new Score(sa4_index, i - 2, ddrcode, current_score));
-									}
-									break;
-								// Doubles
-								case 7:
-									if (current_score >= song.getBdp_s()) {
-										song.setBdp_s(current_score);
-										scorelist.add(new Score(sa4_index, i - 2, ddrcode, current_score));
-									}
-									break;
-								case 8:
-									if (current_score >= song.getDdp_s()) {
-										song.setDdp_s(current_score);
-										scorelist.add(new Score(sa4_index, i - 2, ddrcode, current_score));
-									}
-									break;
-								case 9:
-									if (current_score >= song.getEdp_s()) {
-										song.setEdp_s(current_score);
-										scorelist.add(new Score(sa4_index, i - 2, ddrcode, current_score));
-									}
-									break;
-								case 10:
-									if (current_score >= song.getCdp_s()) {
-										song.setCdp_s(current_score);
-										scorelist.add(new Score(sa4_index, i - 2, ddrcode, current_score));
-									}
-									break;
-
+								if (current_score == song_top_scores[i]) {
+									scorelist.add(new Score(sa4_index, i - 2, ddrcode, current_score));
 								}
 							}
 						}
 					}
 				}
-				songlist.set(sa4_index, song); // Updates given song in songlist ArrayList
-				System.out.println(song.toString());
+				
+				System.out.println();
+				//songlist.set(sa4_index, song); // Updates given song in songlist ArrayList
+				System.out.print(song.getSa4_id() + "-" + song.getTitle() + ": ");
+				for (int x:song_top_scores) {
+					System.out.print(x + " ");
+				}
+				System.out.println();
+				for (int x:song_ties) {
+					System.out.print(x + " ");
+				}
+				System.out.println();
+				for (double x:song_point_values) {
+					System.out.print(x + " ");
+				}
+				System.out.println(songlist.get(sa4_index).toString());
+				
 			}
 			webClient.close();
 
