@@ -29,26 +29,27 @@ public class App {
 	static List<Score> prunedScorelist;
 	static List<Player> playerlist;
 	
-	String[] bannedList = {"41239949"};
+	static List<String> bannedList;
+	final static int SONG_START = 0;
+	final static int SONG_LIMIT = 1; //songlist.size();
 
 	public static void main(String[] args) {
 		playerlist = new ArrayList<Player>();
-
-		songlist = makeSonglist();
-		System.out.println(songlist.get(songlist.size() - 4).toJsString());
-
+		bannedList = new ArrayList<String>();
+		bannedList.add("41239949");
+		bannedList.add("11025437");
 		
+		songlist = makeSonglist();
 		scorelist = new ArrayList<Score>();
 		getTopScores();
 
 		
 		System.out.println(scorelist.size() + " scores");
 		
-		/*
+		
 		List<Score> prunedScorelist = prune_scores();
 		System.out.println(
 				"Pruned to " + prunedScorelist.size() + " scores... " + (scorelist.size() - prunedScorelist.size()));
-		*/
 		
 		update_player_totals(scorelist);
 
@@ -60,8 +61,8 @@ public class App {
 		System.out.println(playerlist.size() + " players");
 		
 		playerlist_to_json(playerlist);
-		
 	}
+	
 
 	public static void prune_playerlist() {
 		for (int i = 0; i < playerlist.size(); i++) {
@@ -482,14 +483,11 @@ public class App {
 		// Vars for sleep
 		long lastPullTimeUnixMs = 0;
 		final long PULL_THRESHOLD_SEC = 3;
-		final int SONG_START = 0;
-		final int SONG_LIMIT = 3; //songlist.size();
 
 		try {
 			WebClient webClient = new WebClient(BrowserVersion.CHROME);
 
 			// For loop (iterates through all songs in song list)
-			// Currently capped at 10
 			for (int sa4_index = SONG_START; sa4_index < SONG_LIMIT; sa4_index++) {
 
 				// Limits speed to 1 song per 3 seconds
@@ -523,18 +521,27 @@ public class App {
 				for (Element row : rows) {
 					Elements cells = row.select("td"); // rank, name, single diffs (x5) double diffs (x4)
 					if (cells.size() > 0) {
-						for (int i = 2; i < cells.size(); i++) {
-							String current_score_string = cells.get(i).text().replace(",", ""); // Remove comma
-							if (current_score_string.contains("0")) {
-								int current_score = Integer.valueOf(current_score_string);
-								
-								if (current_score > song_top_scores[i]) {
-									song_top_scores[i] = current_score;
+						
+						// Ensure that player is not banned.
+						Element link_element = cells.get(1).select("a").first();
+						String name = link_element.text();
+						String link = link_element.attr("href");
+						String ddrcode_string = link.substring(link.indexOf("=") + 1).strip();
+						if (bannedList.contains(ddrcode_string)) {
+							System.out.println("Skipping " + name + "...");
+						} else {
+							for (int i = 2; i < cells.size(); i++) {
+								String current_score_string = cells.get(i).text().replace(",", ""); // Remove comma
+								if (current_score_string.contains("0")) {
+									int current_score = Integer.valueOf(current_score_string);
+									
+									if (current_score > song_top_scores[i]) {
+										song_top_scores[i] = current_score;
+									}
 								}
 							}
 						}
-					}
-									
+					}				
 				}
 				
 				int[] song_ties = new int[11];
@@ -543,15 +550,26 @@ public class App {
 				for (Element row : rows) {
 					Elements cells = row.select("td"); // rank, name, single diffs (x5) double diffs (x4)
 					if (cells.size() > 0) {
-						for (int i = 2; i < cells.size(); i++) {
-							String current_score_string = cells.get(i).text().replace(",", ""); // Remove comma
-							if (current_score_string.contains("0")) {
-								int current_score = Integer.valueOf(current_score_string);
-								
-								if (current_score == song_top_scores[i]) {
-									song_ties[i]++;
+						
+						// Ensure that player is not banned.
+						Element link_element = cells.get(1).select("a").first();
+						String name = link_element.text();
+						String link = link_element.attr("href");
+						String ddrcode_string = link.substring(link.indexOf("=") + 1).strip();
+						if (bannedList.contains(ddrcode_string)) {
+							System.out.println("Skipping " + name + "...");
+						} else {
+							for (int i = 2; i < cells.size(); i++) {
+								String current_score_string = cells.get(i).text().replace(",", ""); // Remove comma
+								if (current_score_string.contains("0")) {
+									int current_score = Integer.valueOf(current_score_string);
+									
+									if (current_score == song_top_scores[i]) {
+										song_ties[i]++;
+									}
 								}
 							}
+							
 						}
 					}
 				}
@@ -612,13 +630,18 @@ public class App {
 							// System.out.println(newplayer.getName());
 							playerlist.add(newplayer);
 						}
-
-						for (int i = 2; i < cells.size(); i++) {
-							String current_score_string = cells.get(i).text().replace(",", "");
-							if (current_score_string.contains("0")) {
-								int current_score = Integer.valueOf(current_score_string);
-								if (current_score == song_top_scores[i]) {
-									scorelist.add(new Score(sa4_index, i - 2, ddrcode, current_score));
+						
+						// Determine whether player is banned
+						if (bannedList.contains(ddrcode_string)) {
+							System.out.println(ddrcode_string + " is banned from the service.");
+						} else {
+							for (int i = 2; i < cells.size(); i++) {
+								String current_score_string = cells.get(i).text().replace(",", "");
+								if (current_score_string.contains("0")) {
+									int current_score = Integer.valueOf(current_score_string);
+									if (current_score == song_top_scores[i]) {
+										scorelist.add(new Score(sa4_index, i - 2, ddrcode, current_score));
+									}
 								}
 							}
 						}
@@ -639,8 +662,7 @@ public class App {
 				for (double x:song_point_values) {
 					System.out.print(x + " ");
 				}
-				System.out.println(songlist.get(sa4_index).toString());
-				
+				System.out.println(songlist.get(sa4_index).toString());	
 			}
 			webClient.close();
 
