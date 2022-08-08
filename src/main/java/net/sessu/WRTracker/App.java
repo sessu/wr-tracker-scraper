@@ -46,10 +46,13 @@ public class App {
 		
 		System.out.println(scorelist.size() + " scores");
 		
-		
+		/* 
+		 * Prune scores: no longer necessary with new algorithm
+		 * 
 		List<Score> prunedScorelist = prune_scores();
 		System.out.println(
 				"Pruned to " + prunedScorelist.size() + " scores... " + (scorelist.size() - prunedScorelist.size()));
+		*/
 		
 		update_player_totals(scorelist);
 
