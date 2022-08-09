@@ -41,6 +41,7 @@ public class App {
 		
 		songlist = makeSonglist();
 		scorelist = new ArrayList<Score>();
+		System.out.println(songlist.size());
 		getTopScores();
 
 		
@@ -491,7 +492,7 @@ public class App {
 			WebClient webClient = new WebClient(BrowserVersion.CHROME);
 
 			// For loop (iterates through all songs in song list)
-			for (int sa4_index = SONG_START; sa4_index < SONG_LIMIT; sa4_index++) {
+			for (int sa4_index = SONG_START; sa4_index < songlist.size(); sa4_index++) {
 
 				// Limits speed to 1 song per 3 seconds
 				long nowUnixMs = System.currentTimeMillis();
