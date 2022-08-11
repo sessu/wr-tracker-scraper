@@ -1,8 +1,13 @@
 package net.sessu.WRTracker;
 
+import java.io.BufferedInputStream;
 import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.URL;
 import java.net.URLConnection;
@@ -10,6 +15,8 @@ import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.IntStream;
+
+
 import java.io.FileWriter;
 
 import org.jsoup.Jsoup;
@@ -40,6 +47,9 @@ public class App {
 		bannedList.add("11025437");
 		
 		songlist = makeSonglist();
+		download_images();
+		
+		/*
 		scorelist = new ArrayList<Score>();
 		System.out.println(songlist.size());
 		getTopScores();
@@ -53,7 +63,7 @@ public class App {
 		List<Score> prunedScorelist = prune_scores();
 		System.out.println(
 				"Pruned to " + prunedScorelist.size() + " scores... " + (scorelist.size() - prunedScorelist.size()));
-		*/
+		
 		
 		update_player_totals(scorelist);
 
@@ -65,6 +75,49 @@ public class App {
 		System.out.println(playerlist.size() + " players");
 		
 		playerlist_to_json(playerlist);
+		*/
+	}
+	
+	public static void download_images() {
+		for (int i = 0; i < songlist.size(); i++) {
+			String kid = songlist.get(i).getKonami_id();
+			String url_prefix = "https://3icecream.com/img/banners/f/";
+			String url_suffix = ".jpg";
+			String url_string = url_prefix + kid + url_suffix;
+			String writepath = "./img/"+kid+".jpg";
+			
+			File f = new File(writepath);
+			if(f.exists() && !f.isDirectory()) { 
+				// System.out.println(writepath + " already exists.");
+			} else {
+				try {
+					URL url = new URL(url_string);
+					InputStream in = new BufferedInputStream(url.openStream());
+					ByteArrayOutputStream out = new ByteArrayOutputStream();
+					byte[] buf = new byte[1024];
+					int n = 0;
+					while (-1!=(n=in.read(buf)))
+					{
+					   out.write(buf, 0, n);
+					}
+					out.close();
+					in.close();
+					byte[] response = out.toByteArray();
+					
+					FileOutputStream fos = new FileOutputStream(writepath);
+					fos.write(response);
+					System.out.println("Wrote to " + writepath + " (" + songlist.get(i).getTitle() +")");
+					fos.close();
+				} catch (FileNotFoundException e) { 
+					System.out.println("Couldn't find " + kid + " on Sanbai's server (" + songlist.get(i).getTitle() + ")");				
+				} 
+				catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
+		}
+			
 	}
 	
 
