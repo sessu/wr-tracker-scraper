@@ -31,54 +31,92 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
 public class App {
-	static List<Song> songlist;
-	static List<Score> scorelist;
-	static List<Score> prunedScorelist;
-	static List<Player> playerlist;
-	
-	static List<String> bannedList;
-	final static int SONG_START = 0;
-	final static int SONG_LIMIT = 1; //songlist.size();
+
+	static List<Score> prunedScorelist; 
 
 	public static void main(String[] args) {
-		playerlist = new ArrayList<Player>();
-		bannedList = new ArrayList<String>();
+		List<Player> playerlist = new ArrayList<Player>();
+		List<String> bannedList = new ArrayList<String>();
+		List<Song> songlist = new ArrayList<Song>();
+		List<Score> scorelist = new ArrayList<Score>();
+		
+		final int SONG_START = 0;
+		final int SONG_LIMIT = 1; //songlist.size();
+		String music_list_url = "http://skillattack.com/sa4/data/master_music.txt";
+		
 		bannedList.add("41239949");
 		bannedList.add("11025437");
 		
-		songlist = makeSonglist();
-		download_images();
+		// Generate songlist
+		makeSonglist(songlist, music_list_url);
 		
-		/*
-		scorelist = new ArrayList<Score>();
-		System.out.println(songlist.size());
-		getTopScores();
+		// Download jackets for songs
+		download_images(songlist);
+		System.out.println("Current songlist contains " + songlist.size() + " songs.");
+		
+		// Get scores and update tie numbers for each difficulty
+		getTopScores(songlist, scorelist, SONG_START, SONG_LIMIT, playerlist, bannedList);
+		System.out.println("Current scorelist contains " + scorelist.size() + " scores");
+		
+		// Prune scores: no longer necessary with new algorith
+		// scorelist = prune_scores(songlist, scorelist);
+		// System.out.println("Pruned to " + prunedScorelist.size() + " scores... " + (scorelist.size() - prunedScorelist.size()));
+		
+		// Update players' scores based on how many tied and untied records they have
+		update_player_totals(songlist, playerlist, scorelist);
 
+		// Remove any players that have a zero score
+		System.out.println(playerlist.size() + " players");
+		prune_playerlist(playerlist);
+		System.out.println(playerlist.size() + " players");
 		
-		System.out.println(scorelist.size() + " scores");
-		
-		/* 
-		 * Prune scores: no longer necessary with new algorithm
-		 * 
-		List<Score> prunedScorelist = prune_scores();
-		System.out.println(
-				"Pruned to " + prunedScorelist.size() + " scores... " + (scorelist.size() - prunedScorelist.size()));
-		
-		
-		update_player_totals(scorelist);
-
+		// Generate JSON files
 		songlist_to_json(songlist);
 		scorelist_to_json(scorelist);
-
-		System.out.println(playerlist.size() + " players");
-		prune_playerlist();
-		System.out.println(playerlist.size() + " players");
-		
 		playerlist_to_json(playerlist);
-		*/
 	}
 	
-	public static void download_images() {
+	public static void makeSonglist(List<Song> songlist, String music_list_url) {
+		try {
+			URL music_list = new URL(music_list_url);
+
+			// Set up the connection
+			URLConnection yc = music_list.openConnection();
+			yc.setRequestProperty("User-Agent", "Mozilla/5.0");
+			Charset charset = Charset.forName("Shift_JIS");
+
+			// Start connection
+			BufferedReader in = new BufferedReader(new InputStreamReader(yc.getInputStream(), charset));
+			String inputLine;
+
+			// Run through .txt file and get all songs
+			while ((inputLine = in.readLine()) != null) {
+				String[] field = inputLine.split("\\t");
+				Song newSong = new Song(Integer.valueOf(field[0]));
+				newSong.setKonami_id(field[1]);
+				newSong.setBeg(Integer.valueOf(field[2]));
+				newSong.setBsp(Integer.valueOf(field[3]));
+				newSong.setDsp(Integer.valueOf(field[4]));
+				newSong.setEsp(Integer.valueOf(field[5]));
+				newSong.setCsp(Integer.valueOf(field[6]));
+				newSong.setBdp(Integer.valueOf(field[7]));
+				newSong.setDdp(Integer.valueOf(field[8]));
+				newSong.setEdp(Integer.valueOf(field[9]));
+				newSong.setCdp(Integer.valueOf(field[10]));
+				newSong.setTitle(field[11]);
+				newSong.setArtist(field[12]);
+				// System.out.println(newSong.toString());
+				songlist.add(newSong);
+			}
+			in.close();
+
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+	
+	public static void download_images(List<Song> songlist) {
 		for (int i = 0; i < songlist.size(); i++) {
 			String kid = songlist.get(i).getKonami_id();
 			String url_prefix = "https://3icecream.com/img/banners/f/";
@@ -120,423 +158,7 @@ public class App {
 			
 	}
 	
-
-	public static void prune_playerlist() {
-		for (int i = 0; i < playerlist.size(); i++) {
-			double size = playerlist.get(i).getWeighted_score();
-			if (size == 0.0) {
-				playerlist.remove(i);
-			}
-		}
-		System.out.println(playerlist.size());
-	}
-
-	public static void update_player_totals(List<Score> prunedScorelist) {
-		for (Score score : prunedScorelist) {
-			int id = score.getSong_id();
-			int level = score.getLevel();
-			final int ddrcode = score.getDdrcode();
-			int ties = 0;
-
-			// Find player within player list
-			int player_index = IntStream.range(0, playerlist.size())
-					.filter(i -> playerlist.get(i).getDdrcode() == ddrcode).findFirst().orElse(-1);
-			if (player_index > -1) {
-				Player this_player = playerlist.get(player_index);
-
-				switch (level) {
-				case 0:
-					ties = songlist.get(id).getBeg_c();
-					if (ties == 1) {
-						this_player.setWeighted_score(this_player.getWeighted_score() + 1);
-						this_player.setBeg_s(this_player.getBeg_s() + 1);
-						this_player.setTotal_u(this_player.getTotal_u() + 1);
-						this_player.setBeg_u(this_player.getBeg_u() + 1);
-					} else if (ties > 1) {
-						double points = 1.0 / ties;
-						this_player.setWeighted_score(this_player.getWeighted_score() + points);
-						this_player.setBeg_s(this_player.getBeg_s() + points);
-						this_player.setTotal_t(this_player.getTotal_t() + 1);
-						this_player.setBeg_t(this_player.getBeg_t() + 1);
-					}
-					break;
-				case 1:
-					ties = songlist.get(id).getBsp_c();
-					if (ties == 1) {
-						this_player.setWeighted_score(this_player.getWeighted_score() + 1);
-						this_player.setBsp_s(this_player.getBsp_s() + 1);
-						this_player.setTotal_u(this_player.getTotal_u() + 1);
-						this_player.setBsp_u(this_player.getBsp_u() + 1);
-					} else if (ties > 1) {
-						double points = 1.0 / ties;
-						this_player.setWeighted_score(this_player.getWeighted_score() + points);
-						this_player.setBsp_s(this_player.getBsp_s() + points);
-						this_player.setTotal_t(this_player.getTotal_t() + 1);
-						this_player.setBsp_t(this_player.getBsp_t() + 1);
-					}
-					break;
-				case 2:
-					ties = songlist.get(id).getDsp_c();
-					if (ties == 1) {
-						this_player.setWeighted_score(this_player.getWeighted_score() + 1);
-						this_player.setDsp_s(this_player.getDsp_s() + 1);
-						this_player.setTotal_u(this_player.getTotal_u() + 1);
-						this_player.setDsp_u(this_player.getDsp_u() + 1);
-					} else if (ties > 1) {
-						double points = 1.0 / ties;
-						this_player.setWeighted_score(this_player.getWeighted_score() + points);
-						this_player.setDsp_s(this_player.getDsp_s() + points);
-						this_player.setTotal_t(this_player.getTotal_t() + 1);
-						this_player.setDsp_t(this_player.getDsp_t() + 1);
-					}
-					break;
-				case 3:
-					ties = songlist.get(id).getEsp_c();
-					if (ties == 1) {
-						this_player.setWeighted_score(this_player.getWeighted_score() + 1);
-						this_player.setEsp_s(this_player.getEsp_s() + 1);
-						this_player.setTotal_u(this_player.getTotal_u() + 1);
-						this_player.setEsp_u(this_player.getEsp_u() + 1);
-					} else if (ties > 1) {
-						double points = 1.0 / ties;
-						this_player.setWeighted_score(this_player.getWeighted_score() + points);
-						this_player.setEsp_s(this_player.getEsp_s() + points);
-						this_player.setTotal_t(this_player.getTotal_t() + 1);
-						this_player.setEsp_t(this_player.getEsp_t() + 1);
-					}
-					break;
-				case 4:
-					ties = songlist.get(id).getCsp_c();
-					if (ties == 1) {
-						this_player.setWeighted_score(this_player.getWeighted_score() + 1);
-						this_player.setCsp_s(this_player.getCsp_s() + 1);
-						this_player.setTotal_u(this_player.getTotal_u() + 1);
-						this_player.setCsp_u(this_player.getCsp_u() + 1);
-					} else if (ties > 1) {
-						double points = 1.0 / ties;
-						this_player.setWeighted_score(this_player.getWeighted_score() + points);
-						this_player.setCsp_s(this_player.getCsp_s() + points);
-						this_player.setTotal_t(this_player.getTotal_t() + 1);
-						this_player.setCsp_t(this_player.getCsp_t() + 1);
-					}
-					break;
-				case 5:
-					ties = songlist.get(id).getBdp_c();
-					if (ties == 1) {
-						this_player.setWeighted_score(this_player.getWeighted_score() + 1);
-						this_player.setBdp_s(this_player.getBdp_s() + 1);
-						this_player.setTotal_u(this_player.getTotal_u() + 1);
-						this_player.setBdp_u(this_player.getBdp_u() + 1);
-					} else if (ties > 1) {
-						double points = 1.0 / ties;
-						this_player.setWeighted_score(this_player.getWeighted_score() + points);
-						this_player.setBdp_s(this_player.getBdp_s() + points);
-						this_player.setTotal_t(this_player.getTotal_t() + 1);
-						this_player.setBdp_t(this_player.getBdp_t() + 1);
-					}
-					break;
-				case 6:
-					ties = songlist.get(id).getDdp_c();
-					if (ties == 1) {
-						this_player.setWeighted_score(this_player.getWeighted_score() + 1);
-						this_player.setDdp_s(this_player.getDdp_s() + 1);
-						this_player.setTotal_u(this_player.getTotal_u() + 1);
-						this_player.setDdp_u(this_player.getDdp_u() + 1);
-					} else if (ties > 1) {
-						double points = 1.0 / ties;
-						this_player.setWeighted_score(this_player.getWeighted_score() + points);
-						this_player.setDdp_s(this_player.getDdp_s() + points);
-						this_player.setTotal_t(this_player.getTotal_t() + 1);
-						this_player.setDdp_t(this_player.getDdp_t() + 1);
-					}
-					break;
-				case 7:
-					ties = songlist.get(id).getEdp_c();
-					if (ties == 1) {
-						this_player.setWeighted_score(this_player.getWeighted_score() + 1);
-						this_player.setEdp_s(this_player.getEdp_s() + 1);
-						this_player.setTotal_u(this_player.getTotal_u() + 1);
-						this_player.setEdp_u(this_player.getEdp_u() + 1);
-					} else if (ties > 1) {
-						double points = 1.0 / ties;
-						this_player.setWeighted_score(this_player.getWeighted_score() + points);
-						this_player.setEdp_s(this_player.getEdp_s() + points);
-						this_player.setTotal_t(this_player.getTotal_t() + 1);
-						this_player.setEdp_t(this_player.getEdp_t() + 1);
-					}
-					break;
-				case 8:
-					ties = songlist.get(id).getCdp_c();
-					if (ties == 1) {
-						this_player.setWeighted_score(this_player.getWeighted_score() + 1);
-						this_player.setCdp_s(this_player.getCdp_s() + 1);
-						this_player.setTotal_u(this_player.getTotal_u() + 1);
-						this_player.setCdp_u(this_player.getCdp_u() + 1);
-					} else if (ties > 1) {
-						double points = 1.0 / ties;
-						this_player.setWeighted_score(this_player.getWeighted_score() + points);
-						this_player.setCdp_s(this_player.getCdp_s() + points);
-						this_player.setTotal_t(this_player.getTotal_t() + 1);
-						this_player.setCdp_t(this_player.getCdp_t() + 1);
-					}
-					break;
-				}
-
-				// System.out.println(player_index + " " + this_player);
-				playerlist.set(player_index, this_player);
-			}
-
-			// System.out.println(playerlist.get(player_index));
-		}
-	}
-
-	public static List<Score> prune_scores() {
-		List<Score> tempScorelist = new ArrayList<Score>();
-
-		for (Score score : scorelist) {
-			int id = score.getSong_id();
-			int level = score.getLevel();
-			switch (level) {
-			case 0:
-				if (songlist.get(id).getBeg_s() == score.getScore()) {
-					tempScorelist.add(score);
-					songlist.get(id).setBeg_c(songlist.get(id).getBeg_c() + 1);
-				}
-				break;
-			case 1:
-				if (songlist.get(id).getBsp_s() == score.getScore()) {
-					tempScorelist.add(score);
-					songlist.get(id).setBsp_c(songlist.get(id).getBsp_c() + 1);
-				}
-				break;
-			case 2:
-				if (songlist.get(id).getDsp_s() == score.getScore()) {
-					tempScorelist.add(score);
-					songlist.get(id).setDsp_c(songlist.get(id).getDsp_c() + 1);
-				}
-				break;
-			case 3:
-				if (songlist.get(id).getEsp_s() == score.getScore()) {
-					tempScorelist.add(score);
-					songlist.get(id).setEsp_c(songlist.get(id).getEsp_c() + 1);
-				}
-				break;
-			case 4:
-				if (songlist.get(id).getCsp_s() == score.getScore()) {
-					tempScorelist.add(score);
-					songlist.get(id).setCsp_c(songlist.get(id).getCsp_c() + 1);
-				}
-				break;
-			case 5:
-				if (songlist.get(id).getBdp_s() == score.getScore()) {
-					tempScorelist.add(score);
-					songlist.get(id).setBdp_c(songlist.get(id).getBdp_c() + 1);
-				}
-				break;
-			case 6:
-				if (songlist.get(id).getDdp_s() == score.getScore()) {
-					tempScorelist.add(score);
-					songlist.get(id).setDdp_c(songlist.get(id).getDdp_c() + 1);
-				}
-				break;
-			case 7:
-				if (songlist.get(id).getEdp_s() == score.getScore()) {
-					tempScorelist.add(score);
-					songlist.get(id).setEdp_c(songlist.get(id).getEdp_c() + 1);
-				}
-				break;
-			case 8:
-				if (songlist.get(id).getCdp_s() == score.getScore()) {
-					tempScorelist.add(score);
-					songlist.get(id).setCdp_c(songlist.get(id).getCdp_c() + 1);
-				}
-				break;
-			}
-		}
-
-		return tempScorelist;
-
-	}
-
-	public static void songlist_to_json(List<Song> songlist) {
-		Gson gson = new GsonBuilder().setPrettyPrinting().create();
-
-		try {
-			File file = new File("songs.json");
-			file.createNewFile();
-			FileWriter writer = new FileWriter(file);
-
-			int pk = 0;
-			writer.write("[");
-			for (Song song : songlist) {
-				writer.write("\n{");
-				writer.write("\n\"model\": \"trackerapp.song\",");
-				writer.write("\n\"pk\": " + pk + ",");
-				writer.write("\n\"fields\": ");
-				writer.write(gson.toJson(song));
-				writer.write("\n}");
-				if (pk + 1 != songlist.size()) {
-					writer.write(",");
-				}
-				pk++;
-			}
-			writer.write("\n]");
-
-			writer.flush();
-			writer.close();
-			System.out.println("Wrote songs");
-
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-
-	}
-
-	public static void playerlist_to_json(List<Player> playerlist) {
-		Gson gson = new GsonBuilder().setPrettyPrinting().create();
-
-		try {
-			File file = new File("players.json");
-			file.createNewFile();
-			FileWriter writer = new FileWriter(file);
-
-			int pk = 1;
-			writer.write("[");
-			for (Player p : playerlist) {
-				if (p.getWeighted_score() > 0.0) {
-					writer.write("\n{");
-					writer.write("\n\"model\": \"trackerapp.player\",");
-					writer.write("\n\"pk\": " + pk + ",");
-					writer.write("\n\"fields\": ");
-					writer.write(gson.toJson(p));
-					writer.write("\n}");
-					if (pk != scorelist.size()) {
-						writer.write(",");
-					}
-				}
-				pk++;
-			}
-			writer.write("\n]");
-
-			writer.flush();
-			writer.close();
-			System.out.println("Wrote players");
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-	}
-	
-	public static void songlist_to_js(List<Song> songlist) {
-		Gson gson = new GsonBuilder().setPrettyPrinting().create();
-
-		try {
-			File file = new File("song-names.js");
-			file.createNewFile();
-			FileWriter writer = new FileWriter(file);
-
-			int pk = 1;
-			writer.write("var songData = [\n");
-			for (Song song : songlist) {
-				writer.write(gson.toJson(song));
-				if (pk != songlist.size()) {
-					writer.write(",\n");
-				}
-				pk++;
-			}
-			writer.write("\n];");
-
-			writer.flush();
-			writer.close();
-			System.out.println("Wrote songs");
-
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-
-	}
-
-	public static void scorelist_to_json(List<Score> scorelist) {
-		Gson gson = new GsonBuilder().setPrettyPrinting().create();
-
-		try {
-			File file = new File("scores.json");
-			file.createNewFile();
-			FileWriter writer = new FileWriter(file);
-
-			int pk = 1;
-			writer.write("[");
-			for (Score score : scorelist) {
-				writer.write("\n{");
-				writer.write("\n\"model\": \"trackerapp.score\",");
-				writer.write("\n\"pk\": " + pk + ",");
-				writer.write("\n\"fields\": ");
-				writer.write(gson.toJson(score));
-				writer.write("\n}");
-				if (pk != scorelist.size()) {
-					writer.write(",");
-				}
-				pk++;
-			}
-			writer.write("\n]");
-
-			writer.flush();
-			writer.close();
-			System.out.println("Wrote scores");
-
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-	}
-
-	public static List<Song> makeSonglist() {
-		List<Song> songlist = new ArrayList<Song>();
-
-		try {
-			URL music_list = new URL("http://skillattack.com/sa4/data/master_music.txt");
-
-			// Set up the connection
-			URLConnection yc = music_list.openConnection();
-			yc.setRequestProperty("User-Agent", "Mozilla/5.0");
-			Charset charset = Charset.forName("Shift_JIS");
-
-			// Start connection
-			BufferedReader in = new BufferedReader(new InputStreamReader(yc.getInputStream(), charset));
-			String inputLine;
-
-			// Run through .txt file and get all songs
-			while ((inputLine = in.readLine()) != null) {
-				String[] field = inputLine.split("\\t");
-				Song newSong = new Song(Integer.valueOf(field[0]));
-				newSong.setKonami_id(field[1]);
-				newSong.setBeg(Integer.valueOf(field[2]));
-				newSong.setBsp(Integer.valueOf(field[3]));
-				newSong.setDsp(Integer.valueOf(field[4]));
-				newSong.setEsp(Integer.valueOf(field[5]));
-				newSong.setCsp(Integer.valueOf(field[6]));
-				newSong.setBdp(Integer.valueOf(field[7]));
-				newSong.setDdp(Integer.valueOf(field[8]));
-				newSong.setEdp(Integer.valueOf(field[9]));
-				newSong.setCdp(Integer.valueOf(field[10]));
-				newSong.setTitle(field[11]);
-				newSong.setArtist(field[12]);
-				// System.out.println(newSong.toString());
-				songlist.add(newSong);
-			}
-			in.close();
-
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-
-		return songlist;
-	}
-
-	public static void getTopScores() {
+	public static void getTopScores(List<Song> songlist, List<Score> scorelist, int SONG_START, int SONG_LIMIT, List<Player> playerlist, List<String> bannedList) {
 		// Vars for sleep
 		long lastPullTimeUnixMs = 0;
 		final long PULL_THRESHOLD_SEC = 3;
@@ -728,5 +350,377 @@ public class App {
 			e.printStackTrace();
 		}
 	}
+
+	public static List<Score> prune_scores(List<Song> songlist, List<Score> scorelist) {
+		List<Score> tempScorelist = new ArrayList<Score>();
+
+		for (Score score : scorelist) {
+			int id = score.getSong_id();
+			int level = score.getLevel();
+			switch (level) {
+			case 0:
+				if (songlist.get(id).getBeg_s() == score.getScore()) {
+					tempScorelist.add(score);
+					songlist.get(id).setBeg_c(songlist.get(id).getBeg_c() + 1);
+				}
+				break;
+			case 1:
+				if (songlist.get(id).getBsp_s() == score.getScore()) {
+					tempScorelist.add(score);
+					songlist.get(id).setBsp_c(songlist.get(id).getBsp_c() + 1);
+				}
+				break;
+			case 2:
+				if (songlist.get(id).getDsp_s() == score.getScore()) {
+					tempScorelist.add(score);
+					songlist.get(id).setDsp_c(songlist.get(id).getDsp_c() + 1);
+				}
+				break;
+			case 3:
+				if (songlist.get(id).getEsp_s() == score.getScore()) {
+					tempScorelist.add(score);
+					songlist.get(id).setEsp_c(songlist.get(id).getEsp_c() + 1);
+				}
+				break;
+			case 4:
+				if (songlist.get(id).getCsp_s() == score.getScore()) {
+					tempScorelist.add(score);
+					songlist.get(id).setCsp_c(songlist.get(id).getCsp_c() + 1);
+				}
+				break;
+			case 5:
+				if (songlist.get(id).getBdp_s() == score.getScore()) {
+					tempScorelist.add(score);
+					songlist.get(id).setBdp_c(songlist.get(id).getBdp_c() + 1);
+				}
+				break;
+			case 6:
+				if (songlist.get(id).getDdp_s() == score.getScore()) {
+					tempScorelist.add(score);
+					songlist.get(id).setDdp_c(songlist.get(id).getDdp_c() + 1);
+				}
+				break;
+			case 7:
+				if (songlist.get(id).getEdp_s() == score.getScore()) {
+					tempScorelist.add(score);
+					songlist.get(id).setEdp_c(songlist.get(id).getEdp_c() + 1);
+				}
+				break;
+			case 8:
+				if (songlist.get(id).getCdp_s() == score.getScore()) {
+					tempScorelist.add(score);
+					songlist.get(id).setCdp_c(songlist.get(id).getCdp_c() + 1);
+				}
+				break;
+			}
+		}
+
+		return tempScorelist;
+
+	}
+
+	public static void update_player_totals(List<Song> songlist, List<Player> playerlist, List<Score> prunedScorelist) {
+		for (Score score : prunedScorelist) {
+			int id = score.getSong_id();
+			int level = score.getLevel();
+			final int ddrcode = score.getDdrcode();
+			int ties = 0;
+
+			// Find player within player list
+			int player_index = IntStream.range(0, playerlist.size())
+					.filter(i -> playerlist.get(i).getDdrcode() == ddrcode).findFirst().orElse(-1);
+			if (player_index > -1) {
+				Player this_player = playerlist.get(player_index);
+
+				switch (level) {
+				case 0:
+					ties = songlist.get(id).getBeg_c();
+					if (ties == 1) {
+						this_player.setWeighted_score(this_player.getWeighted_score() + 1);
+						this_player.setBeg_s(this_player.getBeg_s() + 1);
+						this_player.setTotal_u(this_player.getTotal_u() + 1);
+						this_player.setBeg_u(this_player.getBeg_u() + 1);
+					} else if (ties > 1) {
+						double points = 1.0 / ties;
+						this_player.setWeighted_score(this_player.getWeighted_score() + points);
+						this_player.setBeg_s(this_player.getBeg_s() + points);
+						this_player.setTotal_t(this_player.getTotal_t() + 1);
+						this_player.setBeg_t(this_player.getBeg_t() + 1);
+					}
+					break;
+				case 1:
+					ties = songlist.get(id).getBsp_c();
+					if (ties == 1) {
+						this_player.setWeighted_score(this_player.getWeighted_score() + 1);
+						this_player.setBsp_s(this_player.getBsp_s() + 1);
+						this_player.setTotal_u(this_player.getTotal_u() + 1);
+						this_player.setBsp_u(this_player.getBsp_u() + 1);
+					} else if (ties > 1) {
+						double points = 1.0 / ties;
+						this_player.setWeighted_score(this_player.getWeighted_score() + points);
+						this_player.setBsp_s(this_player.getBsp_s() + points);
+						this_player.setTotal_t(this_player.getTotal_t() + 1);
+						this_player.setBsp_t(this_player.getBsp_t() + 1);
+					}
+					break;
+				case 2:
+					ties = songlist.get(id).getDsp_c();
+					if (ties == 1) {
+						this_player.setWeighted_score(this_player.getWeighted_score() + 1);
+						this_player.setDsp_s(this_player.getDsp_s() + 1);
+						this_player.setTotal_u(this_player.getTotal_u() + 1);
+						this_player.setDsp_u(this_player.getDsp_u() + 1);
+					} else if (ties > 1) {
+						double points = 1.0 / ties;
+						this_player.setWeighted_score(this_player.getWeighted_score() + points);
+						this_player.setDsp_s(this_player.getDsp_s() + points);
+						this_player.setTotal_t(this_player.getTotal_t() + 1);
+						this_player.setDsp_t(this_player.getDsp_t() + 1);
+					}
+					break;
+				case 3:
+					ties = songlist.get(id).getEsp_c();
+					if (ties == 1) {
+						this_player.setWeighted_score(this_player.getWeighted_score() + 1);
+						this_player.setEsp_s(this_player.getEsp_s() + 1);
+						this_player.setTotal_u(this_player.getTotal_u() + 1);
+						this_player.setEsp_u(this_player.getEsp_u() + 1);
+					} else if (ties > 1) {
+						double points = 1.0 / ties;
+						this_player.setWeighted_score(this_player.getWeighted_score() + points);
+						this_player.setEsp_s(this_player.getEsp_s() + points);
+						this_player.setTotal_t(this_player.getTotal_t() + 1);
+						this_player.setEsp_t(this_player.getEsp_t() + 1);
+					}
+					break;
+				case 4:
+					ties = songlist.get(id).getCsp_c();
+					if (ties == 1) {
+						this_player.setWeighted_score(this_player.getWeighted_score() + 1);
+						this_player.setCsp_s(this_player.getCsp_s() + 1);
+						this_player.setTotal_u(this_player.getTotal_u() + 1);
+						this_player.setCsp_u(this_player.getCsp_u() + 1);
+					} else if (ties > 1) {
+						double points = 1.0 / ties;
+						this_player.setWeighted_score(this_player.getWeighted_score() + points);
+						this_player.setCsp_s(this_player.getCsp_s() + points);
+						this_player.setTotal_t(this_player.getTotal_t() + 1);
+						this_player.setCsp_t(this_player.getCsp_t() + 1);
+					}
+					break;
+				case 5:
+					ties = songlist.get(id).getBdp_c();
+					if (ties == 1) {
+						this_player.setWeighted_score(this_player.getWeighted_score() + 1);
+						this_player.setBdp_s(this_player.getBdp_s() + 1);
+						this_player.setTotal_u(this_player.getTotal_u() + 1);
+						this_player.setBdp_u(this_player.getBdp_u() + 1);
+					} else if (ties > 1) {
+						double points = 1.0 / ties;
+						this_player.setWeighted_score(this_player.getWeighted_score() + points);
+						this_player.setBdp_s(this_player.getBdp_s() + points);
+						this_player.setTotal_t(this_player.getTotal_t() + 1);
+						this_player.setBdp_t(this_player.getBdp_t() + 1);
+					}
+					break;
+				case 6:
+					ties = songlist.get(id).getDdp_c();
+					if (ties == 1) {
+						this_player.setWeighted_score(this_player.getWeighted_score() + 1);
+						this_player.setDdp_s(this_player.getDdp_s() + 1);
+						this_player.setTotal_u(this_player.getTotal_u() + 1);
+						this_player.setDdp_u(this_player.getDdp_u() + 1);
+					} else if (ties > 1) {
+						double points = 1.0 / ties;
+						this_player.setWeighted_score(this_player.getWeighted_score() + points);
+						this_player.setDdp_s(this_player.getDdp_s() + points);
+						this_player.setTotal_t(this_player.getTotal_t() + 1);
+						this_player.setDdp_t(this_player.getDdp_t() + 1);
+					}
+					break;
+				case 7:
+					ties = songlist.get(id).getEdp_c();
+					if (ties == 1) {
+						this_player.setWeighted_score(this_player.getWeighted_score() + 1);
+						this_player.setEdp_s(this_player.getEdp_s() + 1);
+						this_player.setTotal_u(this_player.getTotal_u() + 1);
+						this_player.setEdp_u(this_player.getEdp_u() + 1);
+					} else if (ties > 1) {
+						double points = 1.0 / ties;
+						this_player.setWeighted_score(this_player.getWeighted_score() + points);
+						this_player.setEdp_s(this_player.getEdp_s() + points);
+						this_player.setTotal_t(this_player.getTotal_t() + 1);
+						this_player.setEdp_t(this_player.getEdp_t() + 1);
+					}
+					break;
+				case 8:
+					ties = songlist.get(id).getCdp_c();
+					if (ties == 1) {
+						this_player.setWeighted_score(this_player.getWeighted_score() + 1);
+						this_player.setCdp_s(this_player.getCdp_s() + 1);
+						this_player.setTotal_u(this_player.getTotal_u() + 1);
+						this_player.setCdp_u(this_player.getCdp_u() + 1);
+					} else if (ties > 1) {
+						double points = 1.0 / ties;
+						this_player.setWeighted_score(this_player.getWeighted_score() + points);
+						this_player.setCdp_s(this_player.getCdp_s() + points);
+						this_player.setTotal_t(this_player.getTotal_t() + 1);
+						this_player.setCdp_t(this_player.getCdp_t() + 1);
+					}
+					break;
+				}
+
+				// System.out.println(player_index + " " + this_player);
+				playerlist.set(player_index, this_player);
+			}
+
+			// System.out.println(playerlist.get(player_index));
+		}
+	}
+
+	public static void prune_playerlist(List<Player> playerlist) {
+		for (int i = 0; i < playerlist.size(); i++) {
+			double size = playerlist.get(i).getWeighted_score();
+			if (size == 0.0) {
+				playerlist.remove(i);
+			}
+		}
+		System.out.println(playerlist.size());
+	}
+
+	public static void songlist_to_json(List<Song> songlist) {
+		Gson gson = new GsonBuilder().setPrettyPrinting().create();
+
+		try {
+			File file = new File("songs.json");
+			file.createNewFile();
+			FileWriter writer = new FileWriter(file);
+
+			int pk = 0;
+			writer.write("[");
+			for (Song song : songlist) {
+				writer.write("\n{");
+				writer.write("\n\"model\": \"trackerapp.song\",");
+				writer.write("\n\"pk\": " + pk + ",");
+				writer.write("\n\"fields\": ");
+				writer.write(gson.toJson(song));
+				writer.write("\n}");
+				if (pk + 1 != songlist.size()) {
+					writer.write(",");
+				}
+				pk++;
+			}
+			writer.write("\n]");
+
+			writer.flush();
+			writer.close();
+			System.out.println("Wrote songs");
+
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+	}
+
+	public static void playerlist_to_json(List<Player> playerlist) {
+		Gson gson = new GsonBuilder().setPrettyPrinting().create();
+
+		try {
+			File file = new File("players.json");
+			file.createNewFile();
+			FileWriter writer = new FileWriter(file);
+
+			int pk = 1;
+			writer.write("[");
+			for (Player p : playerlist) {
+				if (p.getWeighted_score() > 0.0) {
+					writer.write("\n{");
+					writer.write("\n\"model\": \"trackerapp.player\",");
+					writer.write("\n\"pk\": " + pk + ",");
+					writer.write("\n\"fields\": ");
+					writer.write(gson.toJson(p));
+					writer.write("\n}");
+					if (pk != scorelist.size()) {
+						writer.write(",");
+					}
+				}
+				pk++;
+			}
+			writer.write("\n]");
+
+			writer.flush();
+			writer.close();
+			System.out.println("Wrote players");
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+	
+	public static void songlist_to_js(List<Song> songlist) {
+		Gson gson = new GsonBuilder().setPrettyPrinting().create();
+
+		try {
+			File file = new File("song-names.js");
+			file.createNewFile();
+			FileWriter writer = new FileWriter(file);
+
+			int pk = 1;
+			writer.write("var songData = [\n");
+			for (Song song : songlist) {
+				writer.write(gson.toJson(song));
+				if (pk != songlist.size()) {
+					writer.write(",\n");
+				}
+				pk++;
+			}
+			writer.write("\n];");
+
+			writer.flush();
+			writer.close();
+			System.out.println("Wrote songs");
+
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+	}
+
+	public static void scorelist_to_json(List<Score> scorelist) {
+		Gson gson = new GsonBuilder().setPrettyPrinting().create();
+
+		try {
+			File file = new File("scores.json");
+			file.createNewFile();
+			FileWriter writer = new FileWriter(file);
+
+			int pk = 1;
+			writer.write("[");
+			for (Score score : scorelist) {
+				writer.write("\n{");
+				writer.write("\n\"model\": \"trackerapp.score\",");
+				writer.write("\n\"pk\": " + pk + ",");
+				writer.write("\n\"fields\": ");
+				writer.write(gson.toJson(score));
+				writer.write("\n}");
+				if (pk != scorelist.size()) {
+					writer.write(",");
+				}
+				pk++;
+			}
+			writer.write("\n]");
+
+			writer.flush();
+			writer.close();
+			System.out.println("Wrote scores");
+
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+
 
 }
